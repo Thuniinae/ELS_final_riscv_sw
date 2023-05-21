@@ -56,7 +56,7 @@ static volatile uint32_t * const DMA_OP_ADDR   = (uint32_t * const)0x7000000C;
 static volatile uint32_t * const DMA_STAT_ADDR = (uint32_t * const)0x70000010;
 static const uint32_t DMA_OP_MEMCPY = 1;
 
-bool _is_using_dma = false;
+bool _is_using_dma = true;
 int read_bmp(std::string infile_name) {
   FILE *fp_s = NULL; // source file handler
   fp_s = fopen(infile_name.c_str(), "rb");
