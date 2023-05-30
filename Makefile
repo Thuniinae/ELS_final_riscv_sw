@@ -3,6 +3,6 @@ all : main.cpp
 	
 sim: all
 	$(EE6470)/riscv-vp/vp/build/bin/riscv-vp-acc-hw4 --intercept-syscalls main
-	
+
 clean:
 	rm -f main
