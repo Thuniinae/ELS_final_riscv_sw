@@ -4,6 +4,10 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "stdint.h"
+#include "map.h"
+#include <cmath>
+#include <iostream>
+using namespace std;
 
 unsigned char header[54] = {
     0x42,          // identity : B
@@ -25,12 +29,6 @@ unsigned char header[54] = {
     0,    0, 0, 0  // important colors
 };
 
-union word {
-  int sint;
-  unsigned int uint;
-  unsigned char uc[4];
-};
-
 unsigned int input_rgb_raw_data_offset;
 const unsigned int output_rgb_raw_data_offset=54;
 int width;
@@ -43,18 +41,6 @@ unsigned char *target_bitmap;
 const int WHITE = 255;
 const int BLACK = 0;
 const int THRESHOLD = 90;
-
-// Sobel Filter ACC
-static char* const SOBELFILTER_START_ADDR = reinterpret_cast<char* const>(0x73000000);
-static char* const SOBELFILTER_READ_ADDR  = reinterpret_cast<char* const>(0x73000004);
-
-// DMA 
-static volatile uint32_t * const DMA_SRC_ADDR  = (uint32_t * const)0x70000000;
-static volatile uint32_t * const DMA_DST_ADDR  = (uint32_t * const)0x70000004;
-static volatile uint32_t * const DMA_LEN_ADDR  = (uint32_t * const)0x70000008;
-static volatile uint32_t * const DMA_OP_ADDR   = (uint32_t * const)0x7000000C;
-static volatile uint32_t * const DMA_STAT_ADDR = (uint32_t * const)0x70000010;
-static const uint32_t DMA_OP_MEMCPY = 1;
 
 bool _is_using_dma = true;
 int read_bmp(std::string infile_name) {
@@ -170,9 +156,115 @@ void read_data_from_ACC(char* ADDR, unsigned char* buffer, int len){
   }
 }
 
+void write(word buffer, int channel) {
+  switch(channel){
+    case 1:
+      write_data_to_ACC(GD_W_RGB_ADDR, buffer.uc, 4);
+      break;
+    case 2:
+      write_data_to_ACC(NM_W_RGB_ADDR, buffer.uc, 4);
+      break;
+    default:
+      cout << "unknown rgb channel!" << endl;
+      break;
+  }
+}
+
+word pixel(unsigned int i, unsigned int j) {
+  unsigned char R, G, B;      // color of R, G, B
+  if (i >= 0 && i < width && j >= 0 && j < height) {
+    R = *(source_bitmap +
+          bytes_per_pixel * (width * j + i) + 2);
+    G = *(source_bitmap +
+          bytes_per_pixel * (width * j + i) + 1);
+    B = *(source_bitmap +
+          bytes_per_pixel * (width * j + i) + 0);
+  } else {
+    std::cout << "caution, pixel out of range" << std::endl;
+    R = 0;
+    G = 0;
+    B = 0;
+  }
+  word buffer;
+  buffer.uc[0] = R;
+  buffer.uc[1] = G;
+  buffer.uc[2] = B;
+  return buffer;
+}
+
+void write_mean(mean_t buffer, int channel){
+  // mean with length rgb(4 bytes) * 8 = 32 bytes
+  switch(channel){
+    case 1:
+      write_data_to_ACC(GD_W_MEAN_ADDR, buffer.uc, 32);
+      break;
+    case 2:
+      write_data_to_ACC(CP_W_MEAN_ADDR, buffer.uc, 32);
+      break;
+    default:
+      cout << "unknown mean channel!" << endl;
+      break;
+  }
+}
+
+mean_t read_mean() {
+  mean_t buffer;
+  read_data_from_ACC(NM_R_MEAN_ADDR, buffer.uc, 32);
+  return buffer;
+}
+
+unsigned char read_index() {
+  unsigned char buffer;
+  read_data_from_ACC(AM_R_INDEX_ADDR, &buffer, 1);
+  return buffer;
+}
+
+void write_index(unsigned char buffer, int channel) {
+  switch(channel){
+    case 1:
+      write_data_to_ACC(NM_W_INDEX_ADDR, &buffer, 1);
+      break;
+    case 2:
+      write_data_to_ACC(CP_W_INDEX_ADDR, &buffer, 1);
+      break;
+    default:
+      cout << "unknown mean channel!" << endl;
+      break;
+  }
+}
+
+distance_t read_distance(){
+  distance_t buffer;
+  read_data_from_ACC(GD_R_DISTANCE_ADDR, buffer.uc, 24);
+  return buffer;
+}
+
+void write_distance(distance_t buffer){
+  write_data_to_ACC(AM_W_DISTANCE_ADDR, buffer.uc, 24);
+}
+
+
+bool converge (mean_t mean1, mean_t mean2, int threshold) { // threshold usage 8-bit
+  bool result;
+  int error; // 16-bit usage
+  // mean square error for 8 means
+  result = true;
+  for (int i = 0; i < 8; i++) { // for K-means
+    error = 0; // initialize
+    for (int j = 0; j < 3; j++){ // for R, G, B
+      error += pow((int)mean1.uc[i * 4 + j] - (int)mean2.uc[i * 4 + j], 2);
+    }
+    if (error > threshold * threshold) {
+      result = false;
+      break;
+    }
+  }
+  return result;
+}
+
 int main(int argc, char *argv[]) {
 
-  read_bmp("lena_std_short.bmp");
+  read_bmp("lena_color_512.bmp");
   printf("======================================\n");
   printf("\t  Reading from array\n");
   printf("======================================\n");
@@ -182,45 +274,49 @@ int main(int argc, char *argv[]) {
 	printf(" bytes_per_pixel\t\t= %d\n",bytes_per_pixel);
   printf("======================================\n");
 
-  unsigned char  buffer[4] = {0};
-  word data;
-  int total;
-  printf("Start processing...(%d, %d)\n", width, height);
-  for(int i = 0; i < width; i++){
-    for(int j = 0; j < height; j++){
-      //printf("pixel (%d, %d); \n", i, j);
-      for(int v = -1; v <= 1; v ++){
-        for(int u = -1; u <= 1; u++){
-          if((v + i) >= 0  &&  (v + i ) < width && (u + j) >= 0 && (u + j) < height ){
-            buffer[0] = *(source_bitmap + bytes_per_pixel * ((j + u) * width + (i + v)) + 2);
-            buffer[1] = *(source_bitmap + bytes_per_pixel * ((j + u) * width + (i + v)) + 1);
-            buffer[2] = *(source_bitmap + bytes_per_pixel * ((j + u) * width + (i + v)) + 0);
-            buffer[3] = 0;
-          }else{
-            buffer[0] = 0;
-            buffer[1] = 0;
-            buffer[2] = 0;
-            buffer[3] = 0;
-          }
-          write_data_to_ACC(SOBELFILTER_START_ADDR, buffer, 4);
-        }
-      }
-      read_data_from_ACC(SOBELFILTER_READ_ADDR, buffer, 4);
-
-      memcpy(data.uc, buffer, 4);
-      total = (data).sint;
-      if (total - THRESHOLD >= 0) {
-        // black
-        *(target_bitmap + bytes_per_pixel * (width * i + j) + 2) = BLACK;
-        *(target_bitmap + bytes_per_pixel * (width * i + j) + 1) = BLACK;
-        *(target_bitmap + bytes_per_pixel * (width * i + j) + 0) = BLACK;
-      } else {
-        // white
-        *(target_bitmap + bytes_per_pixel * (width * i + j) + 2) = WHITE;
-        *(target_bitmap + bytes_per_pixel * (width * i + j) + 1) = WHITE;
-        *(target_bitmap + bytes_per_pixel * (width * i + j) + 0) = WHITE;
+  mean_t mean;
+  // initialize mean
+  memcpy(&mean.uc[0], pixel(width>>1, height>>1).uc, 3);
+  memcpy(&mean.uc[1], pixel(width>>2, height>>1).uc, 3);
+  memcpy(&mean.uc[2], pixel(width>>1, height>>2).uc, 3);
+  memcpy(&mean.uc[3], pixel(width>>2, height>>2).uc, 3);
+  memcpy(&mean.uc[4], pixel((width>>1) + (width>>2), (height>>1) + (height>>2)).uc, 3);
+  memcpy(&mean.uc[5], pixel((width>>1) + (width>>2), height>>1).uc, 3);
+  memcpy(&mean.uc[6], pixel(width>>1, (height>>1) + (height>>2)).uc, 3);
+  memcpy(&mean.uc[7], pixel((width>>1) + (width>>2), (height>>1) - (height>>2)).uc, 3);
+  
+  int cnt = 0;
+  for(int k = 0; k < 30; k++) { // send sampled pixels until converge (maximum 30 times)
+    for (unsigned int x = 0; x < width; x = x + 16) {
+      for (unsigned int y = 0; y < height; y = y + 16) {
+        write(pixel(x , y), 1);
+        write_mean(mean, 1);
+        write_distance(read_distance());
+        unsigned char index = read_index();
+        write(pixel(x , y), 2);
+        write_index(index, 1);
       }
     }
+    mean_t new_mean;
+    new_mean = read_mean();
+    if (!converge(mean, new_mean, 1)) // if not converge
+      mean = new_mean;
+    else {
+      mean = new_mean;
+      break;
+    }
+    cnt++;
   }
-  write_bmp("lena_std_out.bmp");
+  // send all the pixels for coloring
+  for (unsigned int x = 0; x < width; x++) {
+    for (unsigned int y = 0; y < height; y++) {
+      write(pixel(x , y), 1);
+      write_mean(mean, 1);
+      write_distance(read_distance());
+      unsigned char index = read_index();
+      write_index(index, 2);
+      write_mean(mean, 2);
+    }
+  }
+  write_bmp("lena_color_512_seg.bmp");
 }
