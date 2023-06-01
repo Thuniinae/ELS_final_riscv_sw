@@ -285,7 +285,6 @@ int main(int argc, char *argv[]) {
   memcpy(&mean.uc[6], pixel(width>>1, (height>>1) + (height>>2)).uc, 3);
   memcpy(&mean.uc[7], pixel((width>>1) + (width>>2), (height>>1) - (height>>2)).uc, 3);
   
-  int cnt = 0;
   for(int k = 0; k < 30; k++) { // send sampled pixels until converge (maximum 30 times)
     for (unsigned int x = 0; x < width; x = x + 16) {
       for (unsigned int y = 0; y < height; y = y + 16) {
@@ -305,7 +304,6 @@ int main(int argc, char *argv[]) {
       mean = new_mean;
       break;
     }
-    cnt++;
   }
   // send all the pixels for coloring
   for (unsigned int x = 0; x < width; x++) {
@@ -316,6 +314,12 @@ int main(int argc, char *argv[]) {
       unsigned char index = read_index();
       write_index(index, 2);
       write_mean(mean, 2);
+
+      word buffer;
+      read_data_from_ACC(CP_R_RGB_ADDR, buffer.uc, 4);
+      *(target_bitmap + bytes_per_pixel * (width * y + x) + 2) = buffer.uc[0];
+      *(target_bitmap + bytes_per_pixel * (width * y + x) + 1) = buffer.uc[1];
+      *(target_bitmap + bytes_per_pixel * (width * y + x) + 0) = buffer.uc[2];
     }
   }
   write_bmp("lena_color_512_seg.bmp");
