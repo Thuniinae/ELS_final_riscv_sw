@@ -277,13 +277,13 @@ int main(int argc, char *argv[]) {
   mean_t mean;
   // initialize mean
   memcpy(&mean.uc[0], pixel(width>>1, height>>1).uc, 3);
-  memcpy(&mean.uc[1], pixel(width>>2, height>>1).uc, 3);
-  memcpy(&mean.uc[2], pixel(width>>1, height>>2).uc, 3);
-  memcpy(&mean.uc[3], pixel(width>>2, height>>2).uc, 3);
-  memcpy(&mean.uc[4], pixel((width>>1) + (width>>2), (height>>1) + (height>>2)).uc, 3);
-  memcpy(&mean.uc[5], pixel((width>>1) + (width>>2), height>>1).uc, 3);
-  memcpy(&mean.uc[6], pixel(width>>1, (height>>1) + (height>>2)).uc, 3);
-  memcpy(&mean.uc[7], pixel((width>>1) + (width>>2), (height>>1) - (height>>2)).uc, 3);
+  memcpy(&mean.uc[4], pixel(width>>2, height>>1).uc, 3);
+  memcpy(&mean.uc[8], pixel(width>>1, height>>2).uc, 3);
+  memcpy(&mean.uc[12], pixel(width>>2, height>>2).uc, 3);
+  memcpy(&mean.uc[16], pixel((width>>1) + (width>>2), (height>>1) + (height>>2)).uc, 3);
+  memcpy(&mean.uc[20], pixel((width>>1) + (width>>2), height>>1).uc, 3);
+  memcpy(&mean.uc[24], pixel(width>>1, (height>>1) + (height>>2)).uc, 3);
+  memcpy(&mean.uc[28], pixel((width>>1) + (width>>2), (height>>1) - (height>>2)).uc, 3);
   
   for(int k = 0; k < 30; k++) { // send sampled pixels until converge (maximum 30 times)
     for (unsigned int x = 0; x < width; x = x + 16) {
