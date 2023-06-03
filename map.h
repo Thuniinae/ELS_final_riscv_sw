@@ -16,18 +16,17 @@ union distance_t {
 };
 
 // modules address
-static char* const GD_W_RGB_ADDR = reinterpret_cast<char* const>(0x73000000);
-static char* const GD_W_MEAN_ADDR = reinterpret_cast<char* const>(0x73000004);
+static char* const GD_W_RGB_ADDR = reinterpret_cast<char* const>      (0x73000000);
+static char* const GD_W_MEAN_ADDR = reinterpret_cast<char* const>     (0x73000004);
 static char* const GD_R_DISTANCE_ADDR  = reinterpret_cast<char* const>(0x73000024);
-static char* const AM_W_DISTANCE_ADDR  = reinterpret_cast<char* const>(0x7300003C);
-static char* const AM_R_INDEX_ADDR  = reinterpret_cast<char* const>(0x73000054);
-static char* const NM_W_INDEX_ADDR  = reinterpret_cast<char* const>(0x73000055);
-static char* const NM_W_RGB_ADDR  = reinterpret_cast<char* const>(0x73000056);
-static char* const NM_R_MEAN_ADDR  = reinterpret_cast<char* const>(0x7300005A);
-static char* const CP_W_INDEX_ADDR  = reinterpret_cast<char* const>(0x7300007A);
-static char* const CP_W_MEAN_ADDR  = reinterpret_cast<char* const>(0x7300007B);
-static char* const CP_R_RGB_ADDR  = reinterpret_cast<char* const>(0x7300009B);
-static char* const CP_END_ADDR  = reinterpret_cast<char* const>(0x7300009F);
+static char* const AM_W_DISTANCE_ADDR  = reinterpret_cast<char* const>(0x74000000);
+static char* const AM_R_INDEX_ADDR  = reinterpret_cast<char* const>   (0x74000018);
+static char* const NM_W_INDEX_ADDR  = reinterpret_cast<char* const>   (0x75000000);
+static char* const NM_W_RGB_ADDR  = reinterpret_cast<char* const>     (0x75000001);
+static char* const NM_R_MEAN_ADDR  = reinterpret_cast<char* const>    (0x75000005);
+static char* const CP_W_INDEX_ADDR  = reinterpret_cast<char* const>   (0x76000000);
+static char* const CP_W_MEAN_ADDR  = reinterpret_cast<char* const>    (0x76000001);
+static char* const CP_R_RGB_ADDR  = reinterpret_cast<char* const>     (0x76000021);
 
 
 
