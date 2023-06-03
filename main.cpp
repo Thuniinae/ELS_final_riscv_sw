@@ -41,6 +41,7 @@ unsigned char *target_bitmap;
 const int WHITE = 255;
 const int BLACK = 0;
 const int THRESHOLD = 90;
+int DMA_bytes = 0; // record DMA data amount 
 
 bool _is_using_dma = true;
 int read_bmp(std::string infile_name) {
@@ -252,7 +253,8 @@ bool converge (mean_t mean1, mean_t mean2, int threshold) { // threshold usage 8
   for (int i = 0; i < 8; i++) { // for K-means
     error = 0; // initialize
     for (int j = 0; j < 3; j++){ // for R, G, B
-      error += pow((int)mean1.uc[i * 4 + j] - (int)mean2.uc[i * 4 + j], 2);
+      error += ((int)mean1.uc[i * 4 + j] - (int)mean2.uc[i * 4 + j])
+             * ((int)mean1.uc[i * 4 + j] - (int)mean2.uc[i * 4 + j]);
     }
     if (error > threshold * threshold) {
       result = false;
@@ -284,20 +286,29 @@ int main(int argc, char *argv[]) {
   memcpy(&mean.uc[20], pixel((width>>1) + (width>>2), height>>1).uc, 3);
   memcpy(&mean.uc[24], pixel(width>>1, (height>>1) + (height>>2)).uc, 3);
   memcpy(&mean.uc[28], pixel((width>>1) + (width>>2), (height>>1) - (height>>2)).uc, 3);
-  
+
+  int total_mean[8][3] = {0};
+  int total_num[8] = {0};
   for(int k = 0; k < 30; k++) { // send sampled pixels until converge (maximum 30 times)
     for (unsigned int x = 0; x < width; x = x + 16) {
       for (unsigned int y = 0; y < height; y = y + 16) {
-        write(pixel(x , y), 1);
         write_mean(mean, 1);
+        write(pixel(x , y), 1);
         write_distance(read_distance());
-        unsigned char index = read_index();
-        write(pixel(x , y), 2);
-        write_index(index, 1);
+        int index = (int)read_index();
+        word rgb = pixel(x , y);
+        total_mean[index][0] += (int)rgb.uc[0];
+        total_mean[index][1] += (int)rgb.uc[1];
+        total_mean[index][2] += (int)rgb.uc[2];
+        total_num[index] += 1;
       }
     }
     mean_t new_mean;
-    new_mean = read_mean();
+    for (int i = 0 ; i < 8; i++) { // get average
+      for (int j = 0; j < 3; j++){
+        new_mean.uc[i*4+j] = (unsigned char)(total_mean[i][j]/total_num[i]);
+      }
+    }
     if (!converge(mean, new_mean, 1)) // if not converge
       mean = new_mean;
     else {
@@ -305,15 +316,23 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
+  //test
+  cout << "converged mean:" << endl;
+  for (int i = 0; i < 8; i++) {
+    cout << (int)mean.uc[i*4] << " ";
+    cout << (int)mean.uc[i*4+1] << " ";
+    cout << (int)mean.uc[i*4+2] << endl;
+  }
   // send all the pixels for coloring
   for (unsigned int x = 0; x < width; x++) {
+    cout << x << endl;
     for (unsigned int y = 0; y < height; y++) {
-      write(pixel(x , y), 1);
       write_mean(mean, 1);
+      write(pixel(x , y), 1);
       write_distance(read_distance());
-      unsigned char index = read_index();
-      write_index(index, 2);
+      int index = (int)read_index();
       write_mean(mean, 2);
+      write_index(index, 2);
 
       word buffer;
       read_data_from_ACC(CP_R_RGB_ADDR, buffer.uc, 4);
