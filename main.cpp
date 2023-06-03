@@ -133,6 +133,7 @@ int write_bmp(std::string outfile_name) {
 }
 
 void write_data_to_ACC(char* ADDR, unsigned char* buffer, int len){
+  DMA_bytes += len;
   if(_is_using_dma){  
     // Using DMA 
     *DMA_SRC_ADDR = (uint32_t)(buffer);
@@ -145,6 +146,7 @@ void write_data_to_ACC(char* ADDR, unsigned char* buffer, int len){
   }
 }
 void read_data_from_ACC(char* ADDR, unsigned char* buffer, int len){
+  DMA_bytes += len;
   if(_is_using_dma){
     // Using DMA 
     *DMA_SRC_ADDR = (uint32_t)(ADDR);
@@ -341,5 +343,6 @@ int main(int argc, char *argv[]) {
       *(target_bitmap + bytes_per_pixel * (width * y + x) + 0) = buffer.uc[2];
     }
   }
+  cout << "DMA data amount: " << DMA_bytes << "bytes" << endl;
   write_bmp("lena_color_512_seg.bmp");
 }
