@@ -2,6 +2,15 @@
 
 Software part of K-means segmentation module execute in riscv-vp.
 
+There are two branches in both software and platform part. 
+The branches are main and multi, where main is simulation with one core and multi is simulation with two cores.
+change both repo to same branch before executing. However, multi branch still can't work.
+> $ git checkout main   
+
+or  
+
+> $ git checkout multi  
+
 ## Execution
 1. Clone the software part in riscv-vp as lab 8.
 > $ cd $EE6470/riscv-vp/sw/  
