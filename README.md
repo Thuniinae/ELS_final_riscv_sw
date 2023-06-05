@@ -17,4 +17,4 @@ Software part of K-means segmentation module execute in riscv-vp.
 > $ cd $EE6470/riscv-vp/sw/ELS_final_riscv/  
 > $ make && make sim
 
-The output should be lena_color_512_seg.bmp which is MWMF result of lena_color_512.bmp
+The output should be lena_color_512_seg.bmp which is K-means segmentation result of lena_color_512.bmp
