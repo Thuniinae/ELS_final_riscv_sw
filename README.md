@@ -1,6 +1,6 @@
 # ELS_final_riscv_sw
 
-Platform part of K-means segmentation module execute in riscv-vp.
+Software part of K-means segmentation module execute in riscv-vp.
 
 ## Execution
 1. Clone the software part in riscv-vp as lab 8.
